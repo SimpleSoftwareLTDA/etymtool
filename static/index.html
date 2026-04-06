@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EtymTool — Word Etymology Tool</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Georgia', 'Times New Roman', 'Palatino', serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem;
+  }
+
+  h1 {
+    font-size: 2.2rem;
+    margin-bottom: 0.3rem;
+    color: #e2b04a;
+    text-align: center;
+  }
+
+  .subtitle {
+    font-size: 0.95rem;
+    color: #999;
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+
+  .container {
+    max-width: 900px;
+    width: 100%;
+  }
+
+  textarea {
+    width: 100%;
+    height: 140px;
+    padding: 1rem 1.2rem;
+    font-family: inherit;
+    font-size: 1.1rem;
+    border: 2px solid #2a2a5a;
+    border-radius: 10px;
+    background: #16213e;
+    color: #e0e0e0;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.3s;
+  }
+  textarea:focus { border-color: #e2b04a; }
+  textarea::placeholder { color: #555; }
+
+  .btn-row {
+    display: flex;
+    gap: 0.75rem;
+    margin: 1.2rem 0;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  button {
+    padding: 0.6rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  button:hover { opacity: 0.85; transform: translateY(-1px); }
+  button:active { transform: translateY(0); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-primary { background: #e2b04a; color: #1a1a2e; font-weight: bold; }
+  .btn-secondary { background: #2a2a5a; color: #bbb; }
+  .btn-import { background: #0f3460; color: #aaddff; }
+
+  #output {
+    background: #16213e;
+    border: 2px solid #2a2a5a;
+    border-radius: 10px;
+    padding: 1.5rem;
+    min-height: 80px;
+    line-height: 2.4;
+    font-size: 1.15rem;
+    word-wrap: break-word;
+  }
+
+  /* Etymology-word styling */
+  .etym-word {
+    border-bottom: 1px dotted #e2b04a;
+    cursor: help;
+    position: relative;
+    color: #f0d68a;
+    display: inline;
+  }
+
+  .etym-word .tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 260px;
+    max-width: 420px;
+    background: #0a0a1a;
+    color: #d4c5a0;
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+    border: 1px solid #e2b04a44;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    z-index: 1000;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    pointer-events: none;
+  }
+
+  .etym-word .tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #0a0a1a;
+  }
+
+  .etym-word:hover .tooltip { display: block; }
+
+  /* Tooltip positioned smartly near edges */
+  .etym-word.near-left .tooltip {
+    left: 0;
+    transform: translateX(0);
+  }
+  .etym-word.near-left .tooltip::after {
+    left: 24px;
+    transform: translateX(0);
+  }
+  .etym-word.near-right .tooltip {
+    left: auto;
+    right: 0;
+    transform: translateX(0);
+  }
+  .etym-word.near-right .tooltip::after {
+    left: auto;
+    right: 24px;
+    transform: translateX(0);
+  }
+
+  #stats {
+    margin-top: 1rem;
+    font-size: 0.82rem;
+    color: #666;
+  }
+
+  .loading { color: #e2b04a; font-style: italic; }
+
+  .badge {
+    display: inline-block;
+    background: #e2b04a22;
+    color: #e2b04a;
+    font-size: 0.72rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 0.5rem;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>EtymTool <span class="badge" id="cacheBadge">0 entries</span></h1>
+  <p class="subtitle">Type or paste text below; hover over highlighted words for etymology.</p>
+
+  <textarea id="input" placeholder="Type or paste English text here..."></textarea>
+
+  <div class="btn-row">
+    <button class="btn-primary" id="btnProcess" onclick="processText()">Get Etymologies</button>
+    <button class="btn-secondary" onclick="loadExample()">Load Example</button>
+    <button class="btn-import" id="btnImport" onclick="importDataset()">Import Dataset</button>
+    <button class="btn-secondary" onclick="showStats()">Cache Stats</button>
+  </div>
+
+  <div id="output"></div>
+  <div id="stats"></div>
+</div>
+
+<script>
+async function processText() {
+  const text = document.getElementById('input').value.trim();
+  if (!text) return;
+
+  const output = document.getElementById('output');
+  const btn = document.getElementById('btnProcess');
+  const totalWords = text.split(/\s+/).filter(w => w.length > 0).length;
+  output.innerHTML = '<span class="loading">Looking up etymologies for ' + totalWords + ' words...</span>';
+  btn.disabled = true;
+
+  try {
+    const resp = await fetch('/api/process-text', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text: text})
+    });
+    const data = await resp.json();
+    renderTokens(data.tokens);
+    updateBadge();
+  } catch (err) {
+    output.innerHTML = '<span style="color:#f44">Error: ' + err.message + '</span>';
+  }
+  btn.disabled = false;
+}
+
+function renderTokens(tokens) {
+  const output = document.getElementById('output');
+  let html = '';
+  let found = 0;
+  let total = 0;
+
+  for (const t of tokens) {
+    if (t.token.match(/^\s+$/)) {
+      html += t.token;
+      continue;
+    }
+    total++;
+
+    if (t.etymology) {
+      found++;
+      const safeEtym = t.etymology.replace(/&/g, '&amp;').replace(/'/g, "&#39;").replace(/"/g, '&quot;').replace(/</g, '&lt;');
+      const safeWord = t.token.replace(/</g, '&lt;');
+      html += '<span class="etym-word">' + safeWord +
+              '<span class="tooltip">' + safeEtym + '</span>' +
+              '</span>';
+    } else {
+      html += t.token.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+  }
+
+  // Fix edge tooltips in next tick (after DOM render)
+  output.innerHTML = html;
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.etym-word').forEach(el => {
+      const rect = el.getBoundingClientRect();
+      const parentRect = output.getBoundingClientRect();
+      const relLeft = rect.left - parentRect.left;
+      const relRight = parentRect.right - rect.right;
+
+      if (relLeft < 140) {
+        el.classList.add('near-left');
+      } else if (relRight < 280) {
+        el.classList.add('near-right');
+      }
+    });
+  });
+
+  const statsEl = document.getElementById('stats');
+  if (total > 0) {
+    statsEl.textContent = found + ' out of ' + total + ' words have etymologies. ' +
+      (total - found) + ' words were not found in cache.';
+  }
+}
+
+function loadExample() {
+  document.getElementById('input').value =
+    'The language is the instrument of thought. Each word carries in itself the history of those who used it before us. When we write about the world, we describe what the senses have captured. Science is born precisely from that gesture: to look and to record what has been seen.';
+}
+
+async function importDataset() {
+  const output = document.getElementById('output');
+  const btn = document.getElementById('btnImport');
+  output.innerHTML = '<span class="loading">Importing offline dataset... this may take a minute.</span>';
+  btn.disabled = true;
+
+  try {
+    const resp = await fetch('/api/import-dataset', {method: 'POST'});
+    const data = await resp.json();
+    output.innerHTML = 'Imported ' + (data.count || 0) + ' entries into the cache.';
+    updateBadge();
+  } catch (err) {
+    output.innerHTML = '<span style="color:#f44">Import failed: ' + err.message + '</span>';
+  }
+  btn.disabled = false;
+}
+
+async function showStats() {
+  try {
+    const resp = await fetch('/api/stats');
+    const data = await resp.json();
+    const statsEl = document.getElementById('stats');
+    let msg = 'Cached entries: ' + data.count;
+    if (data.oldest) {
+      msg += ' | Oldest entry: "' + data.oldest.word + '" (' + data.oldest.dt + ')';
+    }
+    if (data.sample && data.sample.length) {
+      msg += ' | Random sample: ' + data.sample.join(', ');
+    }
+    statsEl.textContent = msg;
+    updateBadge(data.count);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function updateBadge(overrideCount) {
+  try {
+    const resp = await fetch('/api/stats');
+    const data = await resp.json();
+    const cnt = overrideCount || data.count || 0;
+    document.getElementById('cacheBadge').textContent = cnt.toLocaleString() + ' entries';
+  } catch(e) {}
+}
+
+// Load badge on page load
+updateBadge();
+
+// Shortcut: Ctrl+Enter to process
+document.getElementById('input').addEventListener('keydown', function(e) {
+  if (e.ctrlKey && e.key === 'Enter') {
+    e.preventDefault();
+    processText();
+  }
+});
+</script>
+</body>
+</html>

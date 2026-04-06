@@ -1,0 +1,7 @@
+# EtymTool artifacts
+.etymtool/
+*.db
+__pycache__/
+*.pyc
+nohup.out
+venv/
