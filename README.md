@@ -2,6 +2,12 @@
 
 Word etymology lookup tool with SQLite cache that grows organically with demand.
 
+Unlock the hidden layers of language by reading text alongside its etymology. Tracing words back to their roots offers three powerful benefits:
+
+- **Deep Comprehension:** Grasp the true nuances of a text; understanding a word's root meaning often clarifies its usage far better than a modern dictionary definition.
+- **Expanded Historical Perspective:** See the evolution of ideas; every word carries the DNA of the culture and history that created it.
+- **Critical Textual Analysis:** Decode the author's worldview. Analyzing word origins helps reveal hidden biases, cultural framing, and even logical fallacies rooted in ancient assumptions.
+
 ## Architecture
 
 - **Frontend:** Static HTML/JS with CSS tooltips
